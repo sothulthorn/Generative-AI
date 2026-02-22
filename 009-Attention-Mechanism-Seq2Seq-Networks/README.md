@@ -37,6 +37,7 @@
 11. [Limitations of Attention in RNNs](#11-limitations-of-attention-in-rnns)
 12. [From Attention to Transformers (Preview)](#12-from-attention-to-transformers-preview)
 13. [Summary](#13-summary)
+14. [Other References](#14-other-references)
 
 ---
 
@@ -59,6 +60,7 @@ The entire input sentence is **compressed into a single fixed-size vector**:
 $$\underbrace{(x_1, x_2, \ldots, x_T)}_{\text{Could be 100 words}} \xrightarrow{\text{squeeze}} \underbrace{(h_T, C_T)}_{\text{e.g., 256 dims}}$$
 
 Problems:
+
 - Information from **early tokens gets diluted** as the sequence grows
 - The decoder receives the **same static context** for every output token, regardless of which part of the input is most relevant
 - For longer sentences, critical details are **lost** in the compression
@@ -94,11 +96,13 @@ Research (Cho et al., 2014) demonstrated that translation quality degrades sharp
 ### Human Analogy
 
 When a human translator translates a sentence, they don't:
+
 1. Read the entire source sentence
 2. Compress it into a single thought
 3. Translate from that single thought
 
 Instead, they:
+
 1. Read the entire source sentence
 2. For each word they write, **look back at specific parts** of the source
 3. Focus on the **most relevant words** for the current translation
@@ -141,12 +145,12 @@ Decoder:  [s1]-->[s2]-->[s3]
 
 At each decoding step, the decoder can access **every encoder hidden state** $(h_1, h_2, \ldots, h_T)$, with learned weights determining which states to focus on.
 
-| Feature | Without Attention | With Attention |
-|---|---|---|
-| Decoder input | Single fixed context vector | **Different** context vector at each step |
-| Encoder states used | Only $h_T$ (last) | **All** $h_1, h_2, \ldots, h_T$ |
-| Focus | Same for every output token | **Shifts** to relevant input for each output |
-| Long sentences | Information lost | Information **preserved** via direct access |
+| Feature             | Without Attention           | With Attention                               |
+| ------------------- | --------------------------- | -------------------------------------------- |
+| Decoder input       | Single fixed context vector | **Different** context vector at each step    |
+| Encoder states used | Only $h_T$ (last)           | **All** $h_1, h_2, \ldots, h_T$              |
+| Focus               | Same for every output token | **Shifts** to relevant input for each output |
+| Long sentences      | Information lost            | Information **preserved** via direct access  |
 
 ---
 
@@ -173,11 +177,11 @@ Each encoder position produces an **annotation** $h_j$ by concatenating the forw
 
 $$h_j = [\overrightarrow{h_j} \; ; \; \overleftarrow{h_j}]$$
 
-| Annotation | Forward Component | Backward Component | Full Context |
-|---|---|---|---|
-| $h_1$ | $\overrightarrow{h_1}$: context from $x_1$ | $\overleftarrow{h_1}$: context from $x_1, x_2, \ldots, x_T$ | Entire sequence, centered around $x_1$ |
-| $h_2$ | $\overrightarrow{h_2}$: context from $x_1, x_2$ | $\overleftarrow{h_2}$: context from $x_2, \ldots, x_T$ | Entire sequence, centered around $x_2$ |
-| $h_T$ | $\overrightarrow{h_T}$: context from $x_1, \ldots, x_T$ | $\overleftarrow{h_T}$: context from $x_T$ | Entire sequence, centered around $x_T$ |
+| Annotation | Forward Component                                       | Backward Component                                          | Full Context                           |
+| ---------- | ------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| $h_1$      | $\overrightarrow{h_1}$: context from $x_1$              | $\overleftarrow{h_1}$: context from $x_1, x_2, \ldots, x_T$ | Entire sequence, centered around $x_1$ |
+| $h_2$      | $\overrightarrow{h_2}$: context from $x_1, x_2$         | $\overleftarrow{h_2}$: context from $x_2, \ldots, x_T$      | Entire sequence, centered around $x_2$ |
+| $h_T$      | $\overrightarrow{h_T}$: context from $x_1, \ldots, x_T$ | $\overleftarrow{h_T}$: context from $x_T$                   | Entire sequence, centered around $x_T$ |
 
 > Each annotation $h_j$ has a **strong focus on the parts surrounding the $j$-th word** of the input, while still carrying information about the whole sentence. This is what makes attention so powerful — the decoder can access position-specific representations.
 
@@ -194,6 +198,7 @@ The **alignment score** $e_{i,j}$ measures how well the input at position $j$ ma
 $$\boxed{e_{i,j} = a(s_{i-1}, h_j)}$$
 
 Where:
+
 - $s_{i-1}$ is the **previous decoder hidden state** (what the decoder has generated so far)
 - $h_j$ is the **encoder annotation** at position $j$ (representation of input word $j$)
 - $a$ is a learned function (a small neural network)
@@ -202,11 +207,11 @@ This score answers the question: **"How relevant is input position $j$ for gener
 
 **Example:** For input "Hello What's Up" (3 positions) at decoder step $i = 1$:
 
-| Score | Computation | Meaning |
-|---|---|---|
-| $e_{1,1}$ | $a(s_0, h_1)$ | How relevant is "Hello" for generating $y_1$? |
+| Score     | Computation   | Meaning                                        |
+| --------- | ------------- | ---------------------------------------------- |
+| $e_{1,1}$ | $a(s_0, h_1)$ | How relevant is "Hello" for generating $y_1$?  |
 | $e_{1,2}$ | $a(s_0, h_2)$ | How relevant is "What's" for generating $y_1$? |
-| $e_{1,3}$ | $a(s_0, h_3)$ | How relevant is "Up" for generating $y_1$? |
+| $e_{1,3}$ | $a(s_0, h_3)$ | How relevant is "Up" for generating $y_1$?     |
 
 The alignment model $a$ is typically a single-layer feed-forward network:
 
@@ -221,6 +226,7 @@ The raw alignment scores are converted into a **probability distribution** using
 $$\boxed{\alpha_{i,j} = \frac{\exp(e_{i,j})}{\sum_{k=1}^{T} \exp(e_{i,k})}}$$
 
 This ensures:
+
 - All weights are **positive**: $\alpha_{i,j} > 0$
 - All weights **sum to 1**: $\sum_{j=1}^{T} \alpha_{i,j} = 1$
 - The weights form a valid **probability distribution** over input positions
@@ -295,15 +301,15 @@ The alignment model $a$ computes a scalar score for each encoder-decoder positio
 
 $$\boxed{e_{i,j} = v_a^T \cdot \tanh(W_a \cdot s_{i-1} + U_a \cdot h_j + b_a)}$$
 
-| Parameter | Shape | Role |
-|---|---|---|
-| $s_{i-1}$ | $(n_s \times 1)$ | Previous decoder hidden state |
-| $h_j$ | $(2n_h \times 1)$ | Encoder annotation at position $j$ |
-| $W_a$ | $(d_a \times n_s)$ | Projects decoder state into alignment space |
-| $U_a$ | $(d_a \times 2n_h)$ | Projects encoder annotation into alignment space |
-| $b_a$ | $(d_a \times 1)$ | Bias |
-| $v_a$ | $(d_a \times 1)$ | Collapses the $d_a$-dimensional vector into a scalar |
-| $e_{i,j}$ | scalar | Alignment score |
+| Parameter | Shape               | Role                                                 |
+| --------- | ------------------- | ---------------------------------------------------- |
+| $s_{i-1}$ | $(n_s \times 1)$    | Previous decoder hidden state                        |
+| $h_j$     | $(2n_h \times 1)$   | Encoder annotation at position $j$                   |
+| $W_a$     | $(d_a \times n_s)$  | Projects decoder state into alignment space          |
+| $U_a$     | $(d_a \times 2n_h)$ | Projects encoder annotation into alignment space     |
+| $b_a$     | $(d_a \times 1)$    | Bias                                                 |
+| $v_a$     | $(d_a \times 1)$    | Collapses the $d_a$-dimensional vector into a scalar |
+| $e_{i,j}$ | scalar              | Alignment score                                      |
 
 Where $d_a$ is the alignment model's hidden dimension.
 
@@ -329,14 +335,16 @@ $$\boxed{s_i = f(s_{i-1}, \; y_{i-1}, \; c_i)}$$
 
 For an LSTM decoder, this expands to the full gate equations where the input is the concatenation $[y_{i-1} \; ; \; c_i]$:
 
-$$\begin{aligned}
+$$
+\begin{aligned}
 f_i^{\text{dec}} &= \sigma(W_f^{\text{dec}} \cdot [s_{i-1}, \; y_{i-1}, \; c_i] + b_f^{\text{dec}}) \\[4pt]
 i_i^{\text{dec}} &= \sigma(W_i^{\text{dec}} \cdot [s_{i-1}, \; y_{i-1}, \; c_i] + b_i^{\text{dec}}) \\[4pt]
 \tilde{C}_i^{\text{dec}} &= \tanh(W_C^{\text{dec}} \cdot [s_{i-1}, \; y_{i-1}, \; c_i] + b_C^{\text{dec}}) \\[4pt]
 C_i^{\text{dec}} &= f_i^{\text{dec}} \odot C_{i-1}^{\text{dec}} + i_i^{\text{dec}} \odot \tilde{C}_i^{\text{dec}} \\[4pt]
 o_i^{\text{dec}} &= \sigma(W_o^{\text{dec}} \cdot [s_{i-1}, \; y_{i-1}, \; c_i] + b_o^{\text{dec}}) \\[4pt]
 s_i &= o_i^{\text{dec}} \odot \tanh(C_i^{\text{dec}})
-\end{aligned}$$
+\end{aligned}
+$$
 
 ### Output Prediction
 
@@ -355,6 +363,7 @@ Proposed in **"Neural Machine Translation by Jointly Learning to Align and Trans
 $$\boxed{e_{i,j} = v_a^T \cdot \tanh(W_a \cdot s_{i-1} + U_a \cdot h_j)}$$
 
 Key characteristics:
+
 - Uses the **previous** decoder state $s_{i-1}$ (before the current step)
 - Alignment is computed via **addition** of projected states, followed by $\tanh$ and a linear projection
 - The alignment model is a small **feed-forward neural network** (hence "additive")
@@ -373,6 +382,7 @@ $$\boxed{e_{i,j} = s_i^T \cdot W_a \cdot h_j \quad \text{(General)}}$$
 $$\boxed{e_{i,j} = s_i^T \cdot h_j \quad \text{(Dot Product)}}$$
 
 Key characteristics:
+
 - Uses the **current** decoder state $s_i$ (after the current step)
 - Alignment is computed via **dot product** or bilinear form (hence "multiplicative")
 - Computationally simpler and faster
@@ -384,22 +394,22 @@ $$s_{i-1} \xrightarrow{\text{RNN}} s_i \xrightarrow{\text{alignment}} e_{i,j} \x
 
 Luong also proposed three scoring functions:
 
-| Name | Formula | Parameters |
-|---|---|---|
-| **Dot** | $e_{i,j} = s_i^T \cdot h_j$ | None (parameter-free) |
-| **General** | $e_{i,j} = s_i^T \cdot W_a \cdot h_j$ | $W_a \in \mathbb{R}^{n_s \times 2n_h}$ |
-| **Concat** | $e_{i,j} = v_a^T \cdot \tanh(W_a \cdot [s_i \; ; \; h_j])$ | $W_a, v_a$ (same as Bahdanau) |
+| Name        | Formula                                                    | Parameters                             |
+| ----------- | ---------------------------------------------------------- | -------------------------------------- |
+| **Dot**     | $e_{i,j} = s_i^T \cdot h_j$                                | None (parameter-free)                  |
+| **General** | $e_{i,j} = s_i^T \cdot W_a \cdot h_j$                      | $W_a \in \mathbb{R}^{n_s \times 2n_h}$ |
+| **Concat**  | $e_{i,j} = v_a^T \cdot \tanh(W_a \cdot [s_i \; ; \; h_j])$ | $W_a, v_a$ (same as Bahdanau)          |
 
 ### Comparison Table
 
-| Feature | Bahdanau (Additive) | Luong (Multiplicative) |
-|---|---|---|
-| **Paper** | 2014 | 2015 |
-| **Decoder state used** | $s_{i-1}$ (previous) | $s_i$ (current) |
-| **Score function** | $v_a^T \tanh(Ws + Uh)$ | $s^T W h$ or $s^T h$ |
-| **Computation** | More expensive (MLP) | Cheaper (dot product) |
-| **Context vector used in** | Decoder RNN input | Output prediction |
-| **Encoder** | Bidirectional | Unidirectional (top layer) |
+| Feature                    | Bahdanau (Additive)    | Luong (Multiplicative)     |
+| -------------------------- | ---------------------- | -------------------------- |
+| **Paper**                  | 2014                   | 2015                       |
+| **Decoder state used**     | $s_{i-1}$ (previous)   | $s_i$ (current)            |
+| **Score function**         | $v_a^T \tanh(Ws + Uh)$ | $s^T W h$ or $s^T h$       |
+| **Computation**            | More expensive (MLP)   | Cheaper (dot product)      |
+| **Context vector used in** | Decoder RNN input      | Output prediction          |
+| **Encoder**                | Bidirectional          | Unidirectional (top layer) |
 
 ---
 
@@ -413,19 +423,19 @@ Let's trace the complete Attention Mechanism for translating the input **"Hello 
 
 **Forward LSTM:**
 
-| $t$ | Input | State |
-|---|---|---|
-| 1 | "Hello" | $\overrightarrow{h_1}$: context from "Hello" |
-| 2 | "What's" | $\overrightarrow{h_2}$: context from "Hello What's" |
-| 3 | "Up" | $\overrightarrow{h_3}$: context from "Hello What's Up" |
+| $t$ | Input    | State                                                  |
+| --- | -------- | ------------------------------------------------------ |
+| 1   | "Hello"  | $\overrightarrow{h_1}$: context from "Hello"           |
+| 2   | "What's" | $\overrightarrow{h_2}$: context from "Hello What's"    |
+| 3   | "Up"     | $\overrightarrow{h_3}$: context from "Hello What's Up" |
 
 **Backward LSTM:**
 
-| $t$ | Input | State |
-|---|---|---|
-| 3 | "Up" | $\overleftarrow{h_3}$: context from "Up" |
-| 2 | "What's" | $\overleftarrow{h_2}$: context from "What's Up" |
-| 1 | "Hello" | $\overleftarrow{h_1}$: context from "Hello What's Up" |
+| $t$ | Input    | State                                                 |
+| --- | -------- | ----------------------------------------------------- |
+| 3   | "Up"     | $\overleftarrow{h_3}$: context from "Up"              |
+| 2   | "What's" | $\overleftarrow{h_2}$: context from "What's Up"       |
+| 1   | "Hello"  | $\overleftarrow{h_1}$: context from "Hello What's Up" |
 
 **Annotations (concatenation):**
 
@@ -505,7 +515,7 @@ $$\hat{y}_3 = \text{softmax}(W_y \cdot [s_3 ; c_3] + b_y) \rightarrow \textbf{"d
 
 ### Phase 5 — Decoder Step 4
 
-$$\hat{y}_4 \rightarrow \textbf{\<EOS\>} \quad \text{(STOP)}$$
+$\hat{y}_4 \rightarrow$ **\<EOS\>** (STOP)
 
 **Final translation:** "Salut quoi de neuf"
 
@@ -534,6 +544,7 @@ Decoder     |      |        |      |
 This matrix is often visualized as a **heatmap**. For a well-trained translation model, you typically see a roughly **diagonal pattern** (input word $j$ aligns with output word $i$), but with interesting deviations where word order differs between languages.
 
 **What the alignment matrix reveals:**
+
 - **Diagonal pattern:** Languages with similar word order (English to French)
 - **Crossed lines:** Languages where word order reverses (English adjective-noun vs French noun-adjective)
 - **One-to-many:** One input word maps to multiple output words
@@ -577,14 +588,14 @@ $$\mathcal{L} \xrightarrow{\nabla} \alpha_{i,j} \xrightarrow{\nabla} e_{i,j} \xr
 
 ## 10. Why Attention Solves the Bottleneck
 
-| Problem in Basic Seq2Seq | How Attention Solves It |
-|---|---|
-| **Single fixed context vector** | A **different context vector** $c_i$ is computed at each decoder step |
-| **All info squeezed into one vector** | Decoder can access **all** $T$ encoder states directly |
-| **Early tokens forgotten** | Attention weights let the decoder **reach back** to any position |
-| **Same context for every output** | Context is **dynamically tailored** to each output token |
-| **BLEU decays for long sentences** | Direct access to all positions **maintains quality** regardless of length |
-| **Vanishing gradients to encoder** | **Gradient shortcuts** through attention weights |
+| Problem in Basic Seq2Seq              | How Attention Solves It                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| **Single fixed context vector**       | A **different context vector** $c_i$ is computed at each decoder step     |
+| **All info squeezed into one vector** | Decoder can access **all** $T$ encoder states directly                    |
+| **Early tokens forgotten**            | Attention weights let the decoder **reach back** to any position          |
+| **Same context for every output**     | Context is **dynamically tailored** to each output token                  |
+| **BLEU decays for long sentences**    | Direct access to all positions **maintains quality** regardless of length |
+| **Vanishing gradients to encoder**    | **Gradient shortcuts** through attention weights                          |
 
 **The key insight in one equation:**
 
@@ -602,13 +613,13 @@ $$\text{Decoder sees:} \quad c_i = \sum_{j=1}^{T} \alpha_{i,j} \cdot h_j \quad \
 
 Despite solving the bottleneck, attention-based Seq2Seq still has limitations:
 
-| Limitation | Description |
-|---|---|
-| **Sequential computation** | The encoder and decoder RNNs still process tokens **one at a time**. Cannot parallelize across time steps. |
-| **$O(T \times n)$ attention cost** | At each of $n$ decoder steps, attention computes scores over all $T$ encoder positions. For long sequences, this is expensive. |
-| **RNN memory limits** | Even with attention, the decoder hidden state $s_i$ is still a fixed-size recurrent state that can struggle with very long outputs. |
-| **Training speed** | Sequential RNN processing cannot leverage GPU parallelism as effectively as fully parallel architectures. |
-| **No self-attention** | The encoder tokens don't attend to each other — each position only sees its local bidirectional context, not learned global relationships. |
+| Limitation                         | Description                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Sequential computation**         | The encoder and decoder RNNs still process tokens **one at a time**. Cannot parallelize across time steps.                                 |
+| **$O(T \times n)$ attention cost** | At each of $n$ decoder steps, attention computes scores over all $T$ encoder positions. For long sequences, this is expensive.             |
+| **RNN memory limits**              | Even with attention, the decoder hidden state $s_i$ is still a fixed-size recurrent state that can struggle with very long outputs.        |
+| **Training speed**                 | Sequential RNN processing cannot leverage GPU parallelism as effectively as fully parallel architectures.                                  |
+| **No self-attention**              | The encoder tokens don't attend to each other — each position only sees its local bidirectional context, not learned global relationships. |
 
 ---
 
@@ -618,13 +629,13 @@ The Transformer architecture (Vaswani et al., 2017, "Attention Is All You Need")
 
 $$\text{RNN + Attention} \xrightarrow{\text{remove RNN entirely}} \text{Self-Attention (Transformer)}$$
 
-| Feature | RNN + Attention | Transformer |
-|---|---|---|
-| Sequence processing | Sequential (RNN) | **Fully parallel** (self-attention) |
-| Encoder attention | Cross-attention (decoder $\rightarrow$ encoder) | Cross-attention **+ self-attention** |
-| Positional info | Inherent in RNN recurrence | Explicit **positional encodings** |
-| Attention type | Decoder attends to encoder | **Self-attention** (every token attends to every other token) |
-| Training speed | Slow (sequential) | **Fast** (parallelizable) |
+| Feature             | RNN + Attention                                 | Transformer                                                   |
+| ------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| Sequence processing | Sequential (RNN)                                | **Fully parallel** (self-attention)                           |
+| Encoder attention   | Cross-attention (decoder $\rightarrow$ encoder) | Cross-attention **+ self-attention**                          |
+| Positional info     | Inherent in RNN recurrence                      | Explicit **positional encodings**                             |
+| Attention type      | Decoder attends to encoder                      | **Self-attention** (every token attends to every other token) |
+| Training speed      | Slow (sequential)                               | **Fast** (parallelizable)                                     |
 
 > The Transformer keeps the attention mechanism (the best part of this architecture) and removes the RNN (the bottleneck for parallelization). This is the foundation of modern models like BERT, GPT, and all large language models.
 
@@ -638,14 +649,16 @@ $$\text{Basic Seq2Seq:} \quad \text{Entire input} \xrightarrow{\text{compress}} 
 
 ### The Solution — Attention
 
-$$\boxed{\begin{aligned}
+$$
+\boxed{\begin{aligned}
 &\text{1. Annotations:} & h_j &= [\overrightarrow{h_j} ; \overleftarrow{h_j}] && \text{Bidirectional encoder states} \\[8pt]
 &\text{2. Alignment:} & e_{i,j} &= a(s_{i-1}, h_j) && \text{Score relevance of input } j \text{ for output } i \\[8pt]
 &\text{3. Weights:} & \alpha_{i,j} &= \text{softmax}_j(e_{i,j}) && \text{Normalize to probability distribution} \\[8pt]
 &\text{4. Context:} & c_i &= \textstyle\sum_{j=1}^{T} \alpha_{i,j} \cdot h_j && \text{Weighted sum — custom for each step} \\[8pt]
 &\text{5. Decode:} & s_i &= f(s_{i-1}, y_{i-1}, c_i) && \text{Decoder update with attention context} \\[8pt]
 &\text{6. Output:} & \hat{y}_i &= \text{softmax}(W_y \cdot [s_i ; c_i]) && \text{Predict next token}
-\end{aligned}}$$
+\end{aligned}}
+$$
 
 ### Core Insight
 
@@ -656,3 +669,9 @@ $$c_i = \underbrace{\alpha_{i,1}}_{\text{weight}} \cdot \underbrace{h_1}_{\text{
 ### The Evolution
 
 $$\text{Seq2Seq} \xrightarrow[\text{bottleneck}]{\text{fixed context}} \text{Attention} \xrightarrow[\text{sequential RNN}]{\text{remove}} \text{Transformer} \xrightarrow[\text{scale up}]{\text{pre-train}} \text{BERT, GPT, LLMs}$$
+
+---
+
+## 14. Other References
+
+[Introduction to Attention Mechanism](https://erdem.pl/2021/05/introduction-to-attention-mechanism)
